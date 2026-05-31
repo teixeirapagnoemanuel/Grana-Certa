@@ -2,188 +2,175 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="theme-color" content="#0a0a0f"/>
-  <link rel="manifest" href="manifest.json"/>
   <title>GranaCerta</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body,#root{height:100%;background:#0a0a0f}
+    body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',sans-serif;min-height:100vh}
+    .header{padding:20px 24px 0;display:flex;justify-content:space-between;align-items:center}
+    .logo{font-size:1.2rem;font-weight:700;color:#fff}.logo span{color:#22d3ee}
+    .nav{display:flex;gap:6px;padding:16px 24px 0}
+    .nav-btn{padding:7px 16px;border-radius:20px;border:none;cursor:pointer;font-size:0.8rem;font-weight:600;background:rgba(255,255,255,0.06);color:#94a3b8}
+    .nav-btn.active{background:#22d3ee;color:#0a0a0f}
+    .body{padding:20px 24px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+    .card{background:rgba(255,255,255,0.04);border-radius:14px;padding:12px 10px;border:1px solid rgba(255,255,255,0.07)}
+    .card-label{font-size:0.62rem;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px}
+    .card-value{font-size:1.05rem;font-weight:700;word-break:break-all}
+    .chart-card{background:rgba(255,255,255,0.03);border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px}
+    .section-title{font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px}
+    .tx-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03);margin-bottom:8px;border:1px solid rgba(255,255,255,0.05)}
+    .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .tx-info{flex:1}.tx-desc{font-size:0.88rem;color:#e2e8f0;font-weight:500}.tx-meta{font-size:0.72rem;color:#475569}
+    .tx-amt{font-size:0.9rem;font-weight:700}
+    .del-btn{background:none;border:none;color:#334155;cursor:pointer;font-size:1rem;padding:0 4px}
+    .fab{position:fixed;bottom:28px;right:24px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#22d3ee,#6366f1);border:none;color:#fff;font-size:1.6rem;cursor:pointer;z-index:100;box-shadow:0 8px 24px rgba(34,211,238,0.35)}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;z-index:200;display:none}
+    .modal{background:#12121e;border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:480px;border:1px solid rgba(255,255,255,0.1)}
+    .type-row{display:flex;gap:8px;margin-bottom:10px}
+    .type-btn{flex:1;padding:10px;border-radius:12px;border:none;cursor:pointer;font-weight:600;font-size:0.85rem;background:rgba(255,255,255,0.06);color:#64748b}
+    input,select{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:11px 14px;color:#e2e8f0;font-size:0.9rem;margin-bottom:10px;box-sizing:border-box;outline:none}
+    .save-btn,.ai-btn{width:100%;padding:13px;border-radius:14px;border:none;cursor:pointer;background:linear-gradient(135deg,#22d3ee,#6366f1);color:#fff;font-size:0.95rem;font-weight:700}
+    .ai-btn{margin-bottom:16px}
+    .ai-card{background:rgba(34,211,238,0.05);border-radius:16px;padding:20px;border:1px solid rgba(34,211,238,0.15);margin-bottom:16px}
+    .filter-row{display:flex;gap:6px;margin-bottom:14px}
+    .filter-btn{padding:6px 14px;border-radius:20px;border:none;cursor:pointer;font-size:0.75rem;font-weight:600;background:rgba(255,255,255,0.05);color:#64748b}
+    .filter-btn.active{background:rgba(34,211,238,0.15);color:#22d3ee}
+    .hidden{display:none}
     @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{width:20px;height:20px;border:2px solid #22d3ee;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block}
     option{background:#12121e}
   </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useCallback}=React;
-const {PieChart,Pie,Cell,ResponsiveContainer,AreaChart,Area,XAxis,YAxis,Tooltip}=Recharts;
-const STORAGE_KEY="financa-app-data";
-const defaultData={transactions:[]};
-const CATEGORIES={expense:["Moradia","Alimentação","Transporte","Saúde","Lazer","Educação","Roupas","Outros"],income:["Renda","Freelance","Investimentos","Outros"]};
-const CAT_COLORS={Moradia:"#f87171",Alimentação:"#fb923c",Transporte:"#facc15",Saúde:"#34d399",Lazer:"#60a5fa",Educação:"#a78bfa",Roupas:"#f472b6",Outros:"#94a3b8",Renda:"#4ade80",Freelance:"#2dd4bf",Investimentos:"#818cf8"};
-const fmt=(v)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v);
-const fmtDate=(d)=>new Date(d+"T00:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
-
-function App(){
-  const [data,setData]=useState(()=>{try{const r=localStorage.getItem(STORAGE_KEY);return r?JSON.parse(r):defaultData;}catch{return defaultData;}});
-  const [view,setView]=useState("dashboard");
-  const [aiText,setAiText]=useState("");
-  const [aiLoading,setAiLoading]=useState(false);
-  const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({desc:"",amount:"",type:"expense",category:"Alimentação",date:new Date().toISOString().slice(0,10)});
-  const [filter,setFilter]=useState("all");
-  useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch{}},[data]);
-  const txs=data.transactions;
-  const totalIncome=txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
-  const totalExpense=txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
-  const balance=totalIncome-totalExpense;
-  const pieData=Object.entries(txs.filter(t=>t.type==="expense").reduce((acc,t)=>{acc[t.category]=(acc[t.category]||0)+t.amount;return acc;},{})).map(([name,value])=>({name,value}));
-  const sorted=[...txs].sort((a,b)=>a.date.localeCompare(b.date));
-  let running=0;
-  const areaData=sorted.map(t=>{running+=t.type==="income"?t.amount:-t.amount;return{date:fmtDate(t.date),saldo:running};});
-  const filteredTxs=txs.filter(t=>filter==="all"||t.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
-  const addTransaction=()=>{if(!form.desc||!form.amount)return;setData(d=>({...d,transactions:[...d.transactions,{...form,id:Date.now(),amount:parseFloat(form.amount)}]}));setForm({desc:"",amount:"",type:"expense",category:"Alimentação",date:new Date().toISOString().slice(0,10)});setShowForm(false);};
-  const deleteTx=(id)=>setData(d=>({...d,transactions:d.transactions.filter(t=>t.id!==id)}));
-  const analyzeWithAI=useCallback(async()=>{
-    setAiLoading(true);setAiText("");setView("ai");
-    try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Consultor financeiro pessoal. Analise em português com emojis. 3 sugestões:\nReceitas:${fmt(totalIncome)}\nDespesas:${fmt(totalExpense)}\nSaldo:${fmt(balance)}\nTransações:${JSON.stringify(txs.map(t=>({desc:t.desc,amount:t.amount,type:t.type,category:t.category})))}`}]})});const json=await res.json();setAiText(json.content?.[0]?.text||"Erro.");}catch{setAiText("Erro ao conectar.");}
-    setAiLoading(false);
-  },[txs,totalIncome,totalExpense,balance]);
-  const S={
-    app:{minHeight:"100vh",width:"100%",overflowX:"hidden",background:"#0a0a0f",color:"#e2e8f0",fontFamily:"'Segoe UI',sans-serif",display:"flex",flexDirection:"column"},
-    header:{padding:"20px 24px 0",display:"flex",justifyContent:"space-between",alignItems:"center"},
-    nav:{display:"flex",gap:6,padding:"16px 24px 0"},
-    navBtn:(a)=>({padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:"0.8rem",fontWeight:600,background:a?"#22d3ee":"rgba(255,255,255,0.06)",color:a?"#0a0a0f":"#94a3b8"}),
-    body:{padding:"20px 24px",flex:1},
-    grid3:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16,width:"100%"},
-    card:(accent)=>({background:"rgba(255,255,255,0.04)",borderRadius:14,padding:"12px 10px",border:`1px solid ${accent||"rgba(255,255,255,0.07)"}`,minWidth:0}),
-    cardLabel:{fontSize:"0.62rem",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5},
-    cardValue:(c)=>({fontSize:"1.05rem",fontWeight:700,color:c||"#e2e8f0",wordBreak:"break-all"}),
-    sectionTitle:{fontSize:"0.75rem",fontWeight:700,color:"#475569",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:12},
-    chartCard:{background:"rgba(255,255,255,0.03)",borderRadius:16,padding:16,border:"1px solid rgba(255,255,255,0.06)"},
-    txItem:{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,0.03)",marginBottom:8,border:"1px solid rgba(255,255,255,0.05)"},
-    dot:(cat)=>({width:10,height:10,borderRadius:"50%",flexShrink:0,background:CAT_COLORS[cat]||"#64748b"}),
-    txAmt:(type)=>({fontSize:"0.9rem",fontWeight:700,color:type==="income"?"#4ade80":"#f87171"}),
-    fab:{position:"fixed",bottom:28,right:24,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,#22d3ee,#6366f1)",border:"none",color:"#fff",fontSize:"1.6rem",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100},
-    overlay:{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200},
-    modal:{background:"#12121e",borderRadius:"24px 24px 0 0",padding:"28px 24px 36px",width:"100%",maxWidth:480,border:"1px solid rgba(255,255,255,0.1)"},
-    input:{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"11px 14px",color:"#e2e8f0",fontSize:"0.9rem",marginBottom:10,boxSizing:"border-box",outline:"none"},
-    select:{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"11px 14px",color:"#e2e8f0",fontSize:"0.9rem",marginBottom:10,boxSizing:"border-box"},
-    typeBtn:(a,c)=>({flex:1,padding:"10px",borderRadius:12,border:"none",cursor:"pointer",fontWeight:600,fontSize:"0.85rem",background:a?c:"rgba(255,255,255,0.06)",color:a?"#0a0a0f":"#64748b"}),
-    saveBtn:{width:"100%",padding:"13px",borderRadius:14,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#22d3ee,#6366f1)",color:"#fff",fontSize:"0.95rem",fontWeight:700},
-    aiBtn:{width:"100%",padding:"13px",borderRadius:14,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#22d3ee,#6366f1)",color:"#fff",fontSize:"0.95rem",fontWeight:700,marginBottom:16},
-    aiCard:{background:"rgba(34,211,238,0.05)",borderRadius:16,padding:20,border:"1px solid rgba(34,211,238,0.15)",marginBottom:16},
-    filterBtn:(a)=>({padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",fontSize:"0.75rem",fontWeight:600,background:a?"rgba(34,211,238,0.15)":"rgba(255,255,255,0.05)",color:a?"#22d3ee":"#64748b"}),
-  };
-  const Tip=({active,payload})=>active&&payload?.length?<div style={{background:"#1e1e2e",borderRadius:10,padding:"8px 12px",border:"1px solid rgba(255,255,255,0.1)",fontSize:"0.8rem",color:"#e2e8f0"}}>{fmt(payload[0].value)}</div>:null;
-  return(
-    <div style={S.app}>
-      <div style={S.header}>
-        <div style={{fontSize:"1.2rem",fontWeight:700,color:"#fff"}}>💰 <span style={{color:"#22d3ee"}}>Grana</span>Certa</div>
-        <div style={{fontSize:"0.75rem",color:"#334155"}}>maio 2026</div>
-      </div>
-      <div style={S.nav}>
-        {[["dashboard","📊 Resumo"],["transactions","📋 Transações"],["ai","✨ IA"]].map(([v,l])=>(
-          <button key={v} style={S.navBtn(view===v)} onClick={()=>{setView(v);if(v==="ai"&&!aiText)analyzeWithAI();}}>{l}</button>
-        ))}
-      </div>
-      <div style={S.body}>
-        {view==="dashboard"&&<>
-          <div style={S.grid3}>
-            <div style={S.card("rgba(34,211,238,0.2)")}><div style={S.cardLabel}>Saldo</div><div style={S.cardValue(balance>=0?"#22d3ee":"#f87171")}>{fmt(balance)}</div></div>
-            <div style={S.card("rgba(74,222,128,0.15)")}><div style={S.cardLabel}>Receitas</div><div style={S.cardValue("#4ade80")}>{fmt(totalIncome)}</div></div>
-            <div style={S.card("rgba(248,113,113,0.15)")}><div style={S.cardLabel}>Gastos</div><div style={S.cardValue("#f87171")}>{fmt(totalExpense)}</div></div>
-          </div>
-          {areaData.length>0?(
-            <div style={{...S.chartCard,marginBottom:16}}>
-              <div style={S.sectionTitle}>Evolução do saldo</div>
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={areaData} margin={{top:0,right:0,left:-30,bottom:0}}>
-                  <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/><stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/></linearGradient></defs>
-                  <XAxis dataKey="date" tick={{fill:"#334155",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{fill:"#334155",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip/>}/>
-                  <Area type="monotone" dataKey="saldo" stroke="#22d3ee" strokeWidth={2} fill="url(#grad)"/>
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ):(
-            <div style={{...S.chartCard,marginBottom:16,textAlign:"center",padding:"32px 16px"}}>
-              <div style={{fontSize:"2rem",marginBottom:10}}>📭</div>
-              <div style={{color:"#475569",fontSize:"0.85rem"}}>Nenhuma transação ainda.</div>
-              <div style={{color:"#334155",fontSize:"0.78rem",marginTop:4}}>Toque no <strong style={{color:"#22d3ee"}}>+</strong> para adicionar.</div>
-            </div>
-          )}
-          {pieData.length>0&&(
-            <div style={S.chartCard}>
-              <div style={S.sectionTitle}>Gastos por categoria</div>
-              <div style={{display:"flex",alignItems:"center",gap:16}}>
-                <ResponsiveContainer width={130} height={130}>
-                  <PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={58} dataKey="value" strokeWidth={0}>{pieData.map((e,i)=><Cell key={i} fill={CAT_COLORS[e.name]||"#64748b"}/>)}</Pie></PieChart>
-                </ResponsiveContainer>
-                <div style={{flex:1}}>{pieData.sort((a,b)=>b.value-a.value).map(e=>(
-                  <div key={e.name} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7}}><div style={S.dot(e.name)}/><span style={{fontSize:"0.78rem",color:"#94a3b8"}}>{e.name}</span></div>
-                    <span style={{fontSize:"0.78rem",fontWeight:700,color:"#e2e8f0"}}>{fmt(e.value)}</span>
-                  </div>
-                ))}</div>
-              </div>
-            </div>
-          )}
-        </>}
-        {view==="transactions"&&<>
-          <div style={{display:"flex",gap:6,marginBottom:14}}>
-            {[["all","Todos"],["expense","Gastos"],["income","Receitas"]].map(([v,l])=>(
-              <button key={v} style={S.filterBtn(filter===v)} onClick={()=>setFilter(v)}>{l}</button>
-            ))}
-          </div>
-          {filteredTxs.map(t=>(
-            <div key={t.id} style={S.txItem}>
-              <div style={S.dot(t.category)}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:"0.88rem",color:"#e2e8f0",fontWeight:500}}>{t.desc}</div>
-                <div style={{fontSize:"0.72rem",color:"#475569"}}>{t.category} · {fmtDate(t.date)}</div>
-              </div>
-              <div style={S.txAmt(t.type)}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
-              <button style={{background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:"1rem",padding:"0 4px"}} onClick={()=>deleteTx(t.id)}>✕</button>
-            </div>
-          ))}
-          {filteredTxs.length===0&&<div style={{textAlign:"center",color:"#334155",paddingTop:40,fontSize:"0.9rem"}}>Nenhuma transação aqui ainda.</div>}
-        </>}
-        {view==="ai"&&<>
-          <button style={S.aiBtn} onClick={analyzeWithAI} disabled={aiLoading}>{aiLoading?"✨ Analisando...":"✨ Analisar minhas finanças com IA"}</button>
-          {aiLoading&&<div style={{...S.aiCard,display:"flex",alignItems:"center",gap:12}}><div style={{width:20,height:20,border:"2px solid #22d3ee",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><span style={{color:"#64748b",fontSize:"0.85rem"}}>Consultando IA...</span></div>}
-          {aiText&&!aiLoading&&<div style={S.aiCard}><div style={{fontSize:"0.72rem",color:"#22d3ee",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Análise da IA</div><div style={{fontSize:"0.88rem",lineHeight:1.8,color:"#cbd5e1",whiteSpace:"pre-wrap"}}>{aiText}</div></div>}
-        </>}
-      </div>
-      <button style={S.fab} onClick={()=>setShowForm(true)}>+</button>
-      {showForm&&(
-        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
-          <div style={S.modal}>
-            <div style={{fontSize:"1rem",fontWeight:700,color:"#e2e8f0",marginBottom:18}}>Nova transação</div>
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              <button style={S.typeBtn(form.type==="expense","#f87171")} onClick={()=>setForm(f=>({...f,type:"expense",category:"Alimentação"}))}>💸 Gasto</button>
-              <button style={S.typeBtn(form.type==="income","#4ade80")} onClick={()=>setForm(f=>({...f,type:"income",category:"Renda"}))}>💰 Receita</button>
-            </div>
-            <input style={S.input} placeholder="Descrição" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))}/>
-            <input style={S.input} type="number" placeholder="Valor (R$)" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
-            <select style={S.select} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
-              {CATEGORIES[form.type].map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-            <input style={S.input} type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-            <button style={S.saveBtn} onClick={addTransaction}>Salvar transação</button>
-          </div>
-        </div>
-      )}
+<div class="header">
+  <div class="logo">💰 <span>Grana</span>Certa</div>
+  <div style="font-size:0.75rem;color:#334155" id="mes"></div>
+</div>
+<div class="nav">
+  <button class="nav-btn active" onclick="setView('dashboard')">📊 Resumo</button>
+  <button class="nav-btn" onclick="setView('transactions')">📋 Transações</button>
+  <button class="nav-btn" onclick="setView('ai')">✨ IA</button>
+</div>
+<div class="body">
+  <div id="v-dashboard">
+    <div class="grid3">
+      <div class="card" style="border-color:rgba(34,211,238,0.2)"><div class="card-label">Saldo</div><div class="card-value" id="c-saldo"></div></div>
+      <div class="card" style="border-color:rgba(74,222,128,0.15)"><div class="card-label">Receitas</div><div class="card-value" style="color:#4ade80" id="c-rec"></div></div>
+      <div class="card" style="border-color:rgba(248,113,113,0.15)"><div class="card-label">Gastos</div><div class="card-value" style="color:#f87171" id="c-gas"></div></div>
     </div>
-  );
+    <div class="chart-card" id="chart-wrap">
+      <div class="section-title">Evolução do saldo</div>
+      <canvas id="lineChart" height="90" style="width:100%"></canvas>
+      <div class="hidden" id="empty-msg" style="text-align:center;padding:24px 0"><div style="font-size:2rem">📭</div><div style="color:#475569;font-size:0.85rem;margin-top:8px">Nenhuma transação ainda.</div><div style="color:#334155;font-size:0.78rem;margin-top:4px">Toque em <strong style="color:#22d3ee">+</strong> para começar.</div></div>
+    </div>
+    <div class="chart-card hidden" id="pie-section">
+      <div class="section-title">Gastos por categoria</div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <canvas id="pieChart" width="120" height="120" style="flex-shrink:0"></canvas>
+        <div id="pie-legend" style="flex:1"></div>
+      </div>
+    </div>
+  </div>
+  <div id="v-transactions" class="hidden">
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter('all',this)">Todos</button>
+      <button class="filter-btn" onclick="setFilter('expense',this)">Gastos</button>
+      <button class="filter-btn" onclick="setFilter('income',this)">Receitas</button>
+    </div>
+    <div id="tx-list"></div>
+  </div>
+  <div id="v-ai" class="hidden">
+    <button class="ai-btn" id="ai-btn" onclick="analisarIA()">✨ Analisar minhas finanças com IA</button>
+    <div id="ai-result"></div>
+  </div>
+</div>
+<button class="fab" onclick="abrirForm()">+</button>
+<div class="overlay" id="overlay" onclick="if(event.target===this)fecharForm()">
+  <div class="modal">
+    <div style="font-size:1rem;font-weight:700;color:#e2e8f0;margin-bottom:18px">Nova transação</div>
+    <div class="type-row">
+      <button class="type-btn" id="btn-exp" onclick="setTipo('expense')">💸 Gasto</button>
+      <button class="type-btn" id="btn-inc" onclick="setTipo('income')">💰 Receita</button>
+    </div>
+    <input id="f-desc" placeholder="Descrição"/>
+    <input id="f-val" type="number" placeholder="Valor (R$)" inputmode="decimal"/>
+    <select id="f-cat"></select>
+    <input id="f-data" type="date"/>
+    <button class="save-btn" onclick="salvar()">Salvar transação</button>
+  </div>
+</div>
+<script>
+const CATS={expense:["Moradia","Alimentação","Transporte","Saúde","Lazer","Educação","Roupas","Outros"],income:["Renda","Freelance","Investimentos","Outros"]};
+const COR={Moradia:"#f87171",Alimentação:"#fb923c",Transporte:"#facc15",Saúde:"#34d399",Lazer:"#60a5fa",Educação:"#a78bfa",Roupas:"#f472b6",Outros:"#94a3b8",Renda:"#4ade80",Freelance:"#2dd4bf",Investimentos:"#818cf8"};
+const fmt=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v);
+const fmtD=d=>new Date(d+"T00:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+let txs=JSON.parse(localStorage.getItem("gc")||"[]");
+let view="dashboard",filter="all",tipo="expense";
+document.getElementById("mes").textContent=new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+document.getElementById("f-data").value=new Date().toISOString().slice(0,10);
+function salvarLS(){localStorage.setItem("gc",JSON.stringify(txs));}
+function setView(v){view=v;["dashboard","transactions","ai"].forEach(x=>document.getElementById("v-"+x).classList.toggle("hidden",x!==v));document.querySelectorAll(".nav-btn").forEach((b,i)=>b.classList.toggle("active",["dashboard","transactions","ai"][i]===v));render();}
+function setFilter(f,b){filter=f;document.querySelectorAll(".filter-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");renderTxs();}
+function setTipo(t){tipo=t;document.getElementById("btn-exp").style.cssText=t==="expense"?"background:#f87171;color:#0a0a0f":"background:rgba(255,255,255,0.06);color:#64748b";document.getElementById("btn-inc").style.cssText=t==="income"?"background:#4ade80;color:#0a0a0f":"background:rgba(255,255,255,0.06);color:#64748b";const sel=document.getElementById("f-cat");sel.innerHTML=CATS[t].map(c=>`<option>${c}</option>`).join("");}
+function abrirForm(){setTipo("expense");document.getElementById("f-desc").value="";document.getElementById("f-val").value="";document.getElementById("overlay").style.display="flex";}
+function fecharForm(){document.getElementById("overlay").style.display="none";}
+function salvar(){const d=document.getElementById("f-desc").value.trim(),v=parseFloat(document.getElementById("f-val").value),c=document.getElementById("f-cat").value,dt=document.getElementById("f-data").value;if(!d||!v)return;txs.push({id:Date.now(),desc:d,amount:v,type:tipo,category:c,date:dt});salvarLS();fecharForm();render();}
+function deletar(id){txs=txs.filter(t=>t.id!==id);salvarLS();render();}
+function render(){
+  const inc=txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const exp=txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const bal=inc-exp;
+  document.getElementById("c-saldo").textContent=fmt(bal);document.getElementById("c-saldo").style.color=bal>=0?"#22d3ee":"#f87171";
+  document.getElementById("c-rec").textContent=fmt(inc);document.getElementById("c-gas").textContent=fmt(exp);
+  renderGrafico();renderPie();renderTxs();
 }
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function renderGrafico(){
+  const cv=document.getElementById("lineChart"),em=document.getElementById("empty-msg");
+  const sorted=[...txs].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!sorted.length){cv.classList.add("hidden");em.classList.remove("hidden");return;}
+  cv.classList.remove("hidden");em.classList.add("hidden");
+  let run=0;const pts=sorted.map(t=>{run+=t.type==="income"?t.amount:-t.amount;return run;});
+  const ctx=cv.getContext("2d");cv.width=cv.offsetWidth||300;const w=cv.width,h=90,p=10;
+  ctx.clearRect(0,0,w,h);
+  const mn=Math.min(...pts),mx=Math.max(...pts),rng=mx-mn||1;
+  const xs=pts.map((_,i)=>p+i*(w-2*p)/Math.max(pts.length-1,1));
+  const ys=pts.map(v=>h-p-(v-mn)/rng*(h-2*p));
+  const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"rgba(34,211,238,0.3)");g.addColorStop(1,"rgba(34,211,238,0)");
+  ctx.beginPath();ctx.moveTo(xs[0],ys[0]);xs.forEach((x,i)=>{if(i)ctx.lineTo(x,ys[i]);});ctx.lineTo(xs[xs.length-1],h);ctx.lineTo(xs[0],h);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.moveTo(xs[0],ys[0]);xs.forEach((x,i)=>{if(i)ctx.lineTo(x,ys[i]);});ctx.strokeStyle="#22d3ee";ctx.lineWidth=2;ctx.stroke();
+}
+function renderPie(){
+  const exps=txs.filter(t=>t.type==="expense");const sec=document.getElementById("pie-section");
+  if(!exps.length){sec.classList.add("hidden");return;}sec.classList.remove("hidden");
+  const cats={};exps.forEach(t=>{cats[t.category]=(cats[t.category]||0)+t.amount;});
+  const ents=Object.entries(cats).sort((a,b)=>b[1]-a[1]);const total=ents.reduce((s,[,v])=>s+v,0);
+  const cv=document.getElementById("pieChart");const ctx=cv.getContext("2d");ctx.clearRect(0,0,120,120);
+  let ang=-Math.PI/2;
+  ents.forEach(([cat,val])=>{const sl=val/total*Math.PI*2;ctx.beginPath();ctx.moveTo(60,60);ctx.arc(60,60,52,ang,ang+sl);ctx.closePath();ctx.fillStyle=COR[cat]||"#94a3b8";ctx.fill();ang+=sl;});
+  ctx.beginPath();ctx.arc(60,60,32,0,Math.PI*2);ctx.fillStyle="#0a0a0f";ctx.fill();
+  document.getElementById("pie-legend").innerHTML=ents.map(([cat,val])=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="display:flex;align-items:center;gap:7px"><div class="dot" style="background:${COR[cat]||'#94a3b8'}"></div><span style="font-size:0.78rem;color:#94a3b8">${cat}</span></div><span style="font-size:0.78rem;font-weight:700;color:#e2e8f0">${fmt(val)}</span></div>`).join("");
+}
+function renderTxs(){
+  const list=document.getElementById("tx-list");
+  const f=txs.filter(t=>filter==="all"||t.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
+  list.innerHTML=f.length?f.map(t=>`<div class="tx-item"><div class="dot" style="background:${COR[t.category]||'#64748b'}"></div><div class="tx-info"><div class="tx-desc">${t.desc}</div><div class="tx-meta">${t.category} · ${fmtD(t.date)}</div></div><div class="tx-amt" style="color:${t.type==="income"?"#4ade80":"#f87171"}">${t.type==="income"?"+":"-"}${fmt(t.amount)}</div><button class="del-btn" onclick="deletar(${t.id})">✕</button></div>`).join(""):`<div style="text-align:center;color:#334155;padding-top:40px;font-size:0.9rem">Nenhuma transação aqui ainda.</div>`;
+}
+async function analisarIA(){
+  const btn=document.getElementById("ai-btn"),res=document.getElementById("ai-result");
+  btn.textContent="✨ Analisando...";btn.disabled=true;
+  res.innerHTML=`<div class="ai-card" style="display:flex;align-items:center;gap:12px"><div class="spinner"></div><span style="color:#64748b;font-size:0.85rem">Consultando IA...</span></div>`;
+  const inc=txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const exp=txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Consultor financeiro pessoal. Analise em português com emojis e dê 3 sugestões:\nReceitas:${fmt(inc)}\nDespesas:${fmt(exp)}\nSaldo:${fmt(inc-exp)}\nTransações:${JSON.stringify(txs.map(t=>({desc:t.desc,amount:t.amount,type:t.type,category:t.category})))}`}]})});
+    const j=await r.json();const txt=j.content?.[0]?.text||"Erro.";
+    res.innerHTML=`<div class="ai-card"><div style="font-size:0.72rem;color:#22d3ee;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Análise da IA</div><div style="font-size:0.88rem;line-height:1.8;color:#cbd5e1;white-space:pre-wrap">${txt}</div></div>`;
+  }catch{res.innerHTML=`<div class="ai-card"><div style="color:#cbd5e1;font-size:0.88rem">Erro ao conectar com a IA.</div></div>`;}
+  btn.textContent="✨ Analisar minhas finanças com IA";btn.disabled=false;
+}
+setTipo("expense");render();
 </script>
 </body>
 </html>
