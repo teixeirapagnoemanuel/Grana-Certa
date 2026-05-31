@@ -1,0 +1,22 @@
+{
+  "name": "GranaCerta",
+  "short_name": "GranaCerta",
+  "description": "App de finanças pessoais",
+  "start_url": "/Grana-Certa/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://fakeimg.pl/192x192/22d3ee/0a0a0f?text=GC&font_size=60",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://fakeimg.pl/512x512/22d3ee/0a0a0f?text=GC&font_size=150",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
