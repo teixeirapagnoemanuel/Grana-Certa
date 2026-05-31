@@ -1,0 +1,199 @@
+const { useState, useEffect, useCallback } = React;
+const { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } = Recharts;
+
+const STORAGE_KEY = "financa-app-data";
+const defaultData = { transactions: [] };
+const CATEGORIES = {
+  expense: ["Moradia", "Alimentação", "Transporte", "Saúde", "Lazer", "Educação", "Roupas", "Outros"],
+  income: ["Renda", "Freelance", "Investimentos", "Outros"],
+};
+const CAT_COLORS = {
+  Moradia: "#f87171", Alimentação: "#fb923c", Transporte: "#facc15",
+  Saúde: "#34d399", Lazer: "#60a5fa", Educação: "#a78bfa",
+  Roupas: "#f472b6", Outros: "#94a3b8", Renda: "#4ade80", Freelance: "#2dd4bf",
+  Investimentos: "#818cf8",
+};
+const fmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+const fmtDate = (d) => new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
+function App() {
+  const [data, setData] = useState(() => {
+    try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : defaultData; }
+    catch { return defaultData; }
+  });
+  const [view, setView] = useState("dashboard");
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ desc: "", amount: "", type: "expense", category: "Alimentação", date: new Date().toISOString().slice(0, 10) });
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {} }, [data]);
+
+  const txs = data.transactions;
+  const totalIncome = txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const totalExpense = txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const balance = totalIncome - totalExpense;
+
+  const pieData = Object.entries(txs.filter(t => t.type === "expense").reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {})).map(([name, value]) => ({ name, value }));
+
+  const sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date));
+  let running = 0;
+  const areaData = sorted.map(t => { running += t.type === "income" ? t.amount : -t.amount; return { date: fmtDate(t.date), saldo: running }; });
+  const filteredTxs = txs.filter(t => filter === "all" || t.type === filter).sort((a, b) => b.date.localeCompare(a.date));
+
+  const addTransaction = () => {
+    if (!form.desc || !form.amount) return;
+    setData(d => ({ ...d, transactions: [...d.transactions, { ...form, id: Date.now(), amount: parseFloat(form.amount) }] }));
+    setForm({ desc: "", amount: "", type: "expense", category: "Alimentação", date: new Date().toISOString().slice(0, 10) });
+    setShowForm(false);
+  };
+
+  const deleteTx = (id) => setData(d => ({ ...d, transactions: d.transactions.filter(t => t.id !== id) }));
+
+  const analyzeWithAI = useCallback(async () => {
+    setAiLoading(true); setAiText(""); setView("ai");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `Você é um consultor financeiro pessoal. Analise esses dados e dê insights práticos em português com emojis. 3 sugestões concretas:\nReceitas: ${fmt(totalIncome)}\nDespesas: ${fmt(totalExpense)}\nSaldo: ${fmt(balance)}\nTransações: ${JSON.stringify(txs.map(t => ({ desc: t.desc, amount: t.amount, type: t.type, category: t.category })))}` }] })
+      });
+      const json = await res.json();
+      setAiText(json.content?.[0]?.text || "Não foi possível gerar análise.");
+    } catch { setAiText("Erro ao conectar com a IA."); }
+    setAiLoading(false);
+  }, [txs, totalIncome, totalExpense, balance]);
+
+  const S = {
+    app: { minHeight: "100vh", width: "100%", overflowX: "hidden", background: "#0a0a0f", color: "#e2e8f0", fontFamily: "'DM Sans','Segoe UI',sans-serif", display: "flex", flexDirection: "column" },
+    header: { padding: "20px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" },
+    nav: { display: "flex", gap: 6, padding: "16px 24px 0" },
+    navBtn: (a) => ({ padding: "7px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, background: a ? "#22d3ee" : "rgba(255,255,255,0.06)", color: a ? "#0a0a0f" : "#94a3b8" }),
+    body: { padding: "20px 24px", flex: 1 },
+    grid3: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16, width: "100%" },
+    card: (accent) => ({ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 10px", border: `1px solid ${accent || "rgba(255,255,255,0.07)"}`, minWidth: 0 }),
+    cardLabel: { fontSize: "0.62rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 },
+    cardValue: (c) => ({ fontSize: "1.05rem", fontWeight: 700, color: c || "#e2e8f0", wordBreak: "break-all" }),
+    sectionTitle: { fontSize: "0.75rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 },
+    chartCard: { flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,0.06)" },
+    txItem: { display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.03)", marginBottom: 8, border: "1px solid rgba(255,255,255,0.05)" },
+    dot: (cat) => ({ width: 10, height: 10, borderRadius: "50%", flexShrink: 0, background: CAT_COLORS[cat] || "#64748b" }),
+    txAmt: (type) => ({ fontSize: "0.9rem", fontWeight: 700, color: type === "income" ? "#4ade80" : "#f87171" }),
+    fab: { position: "fixed", bottom: 28, right: 24, width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#22d3ee,#6366f1)", border: "none", color: "#fff", fontSize: "1.6rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 },
+    overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 },
+    modal: { background: "#12121e", borderRadius: "24px 24px 0 0", padding: "28px 24px 36px", width: "100%", maxWidth: 480, border: "1px solid rgba(255,255,255,0.1)" },
+    input: { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "11px 14px", color: "#e2e8f0", fontSize: "0.9rem", marginBottom: 10, boxSizing: "border-box", outline: "none" },
+    select: { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "11px 14px", color: "#e2e8f0", fontSize: "0.9rem", marginBottom: 10, boxSizing: "border-box" },
+    typeBtn: (a, c) => ({ flex: 1, padding: "10px", borderRadius: 12, border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", background: a ? c : "rgba(255,255,255,0.06)", color: a ? "#0a0a0f" : "#64748b" }),
+    saveBtn: { width: "100%", padding: "13px", borderRadius: 14, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#22d3ee,#6366f1)", color: "#fff", fontSize: "0.95rem", fontWeight: 700 },
+    aiBtn: { width: "100%", padding: "13px", borderRadius: 14, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#22d3ee,#6366f1)", color: "#fff", fontSize: "0.95rem", fontWeight: 700, marginBottom: 16 },
+    aiCard: { background: "rgba(34,211,238,0.05)", borderRadius: 16, padding: 20, border: "1px solid rgba(34,211,238,0.15)", marginBottom: 16 },
+    filterBtn: (a) => ({ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, background: a ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.05)", color: a ? "#22d3ee" : "#64748b" }),
+  };
+
+  const Tip = ({ active, payload }) => active && payload?.length ? <div style={{ background: "#1e1e2e", borderRadius: 10, padding: "8px 12px", border: "1px solid rgba(255,255,255,0.1)", fontSize: "0.8rem", color: "#e2e8f0" }}>{fmt(payload[0].value)}</div> : null;
+
+  return (
+    <div style={S.app}>
+      <div style={S.header}>
+        <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff" }}>💰 <span style={{ color: "#22d3ee" }}>Grana</span>Certa</div>
+        <div style={{ fontSize: "0.75rem", color: "#334155" }}>maio 2026</div>
+      </div>
+      <div style={S.nav}>
+        {[["dashboard","📊 Resumo"],["transactions","📋 Transações"],["ai","✨ IA"]].map(([v,l]) => (
+          <button key={v} style={S.navBtn(view===v)} onClick={() => { setView(v); if(v==="ai"&&!aiText) analyzeWithAI(); }}>{l}</button>
+        ))}
+      </div>
+      <div style={S.body}>
+        {view === "dashboard" && <>
+          <div style={S.grid3}>
+            <div style={S.card("rgba(34,211,238,0.2)")}><div style={S.cardLabel}>Saldo</div><div style={S.cardValue(balance>=0?"#22d3ee":"#f87171")}>{fmt(balance)}</div></div>
+            <div style={S.card("rgba(74,222,128,0.15)")}><div style={S.cardLabel}>Receitas</div><div style={S.cardValue("#4ade80")}>{fmt(totalIncome)}</div></div>
+            <div style={S.card("rgba(248,113,113,0.15)")}><div style={S.cardLabel}>Gastos</div><div style={S.cardValue("#f87171")}>{fmt(totalExpense)}</div></div>
+          </div>
+          {areaData.length > 0 ? (
+            <div style={{ ...S.chartCard, marginBottom: 16 }}>
+              <div style={S.sectionTitle}>Evolução do saldo</div>
+              <ResponsiveContainer width="100%" height={120}>
+                <AreaChart data={areaData} margin={{ top:0,right:0,left:-30,bottom:0 }}>
+                  <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/><stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/></linearGradient></defs>
+                  <XAxis dataKey="date" tick={{ fill:"#334155",fontSize:10 }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fill:"#334155",fontSize:10 }} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<Tip/>}/>
+                  <Area type="monotone" dataKey="saldo" stroke="#22d3ee" strokeWidth={2} fill="url(#grad)"/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div style={{ ...S.chartCard, marginBottom:16, textAlign:"center", padding:"32px 16px" }}>
+              <div style={{ fontSize:"2rem",marginBottom:10 }}>📭</div>
+              <div style={{ color:"#475569",fontSize:"0.85rem" }}>Nenhuma transação ainda.</div>
+              <div style={{ color:"#334155",fontSize:"0.78rem",marginTop:4 }}>Toque no <strong style={{color:"#22d3ee"}}>+</strong> para adicionar.</div>
+            </div>
+          )}
+          {pieData.length > 0 && (
+            <div style={S.chartCard}>
+              <div style={S.sectionTitle}>Gastos por categoria</div>
+              <div style={{ display:"flex",alignItems:"center",gap:16 }}>
+                <ResponsiveContainer width={130} height={130}>
+                  <PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={58} dataKey="value" strokeWidth={0}>{pieData.map((e,i)=><Cell key={i} fill={CAT_COLORS[e.name]||"#64748b"}/>)}</Pie></PieChart>
+                </ResponsiveContainer>
+                <div style={{ flex:1 }}>{pieData.sort((a,b)=>b.value-a.value).map(e=>(
+                  <div key={e.name} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:7 }}><div style={S.dot(e.name)}/><span style={{ fontSize:"0.78rem",color:"#94a3b8" }}>{e.name}</span></div>
+                    <span style={{ fontSize:"0.78rem",fontWeight:700,color:"#e2e8f0" }}>{fmt(e.value)}</span>
+                  </div>
+                ))}</div>
+              </div>
+            </div>
+          )}
+        </>}
+        {view === "transactions" && <>
+          <div style={{ display:"flex",gap:6,marginBottom:14 }}>
+            {[["all","Todos"],["expense","Gastos"],["income","Receitas"]].map(([v,l])=>(
+              <button key={v} style={S.filterBtn(filter===v)} onClick={()=>setFilter(v)}>{l}</button>
+            ))}
+          </div>
+          {filteredTxs.map(t=>(
+            <div key={t.id} style={S.txItem}>
+              <div style={S.dot(t.category)}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:"0.88rem",color:"#e2e8f0",fontWeight:500 }}>{t.desc}</div>
+                <div style={{ fontSize:"0.72rem",color:"#475569" }}>{t.category} · {fmtDate(t.date)}</div>
+              </div>
+              <div style={S.txAmt(t.type)}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
+              <button style={{ background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:"1rem",padding:"0 4px" }} onClick={()=>deleteTx(t.id)}>✕</button>
+            </div>
+          ))}
+          {filteredTxs.length===0 && <div style={{ textAlign:"center",color:"#334155",paddingTop:40,fontSize:"0.9rem" }}>Nenhuma transação aqui ainda.</div>}
+        </>}
+        {view === "ai" && <>
+          <button style={S.aiBtn} onClick={analyzeWithAI} disabled={aiLoading}>{aiLoading?"✨ Analisando...":"✨ Analisar minhas finanças com IA"}</button>
+          {aiLoading && <div style={{ ...S.aiCard,display:"flex",alignItems:"center",gap:12 }}><div style={{ width:20,height:20,border:"2px solid #22d3ee",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite" }}/><span style={{ color:"#64748b",fontSize:"0.85rem" }}>Consultando IA...</span></div>}
+          {aiText && !aiLoading && <div style={S.aiCard}><div style={{ fontSize:"0.72rem",color:"#22d3ee",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12 }}>Análise da IA</div><div style={{ fontSize:"0.88rem",lineHeight:1.8,color:"#cbd5e1",whiteSpace:"pre-wrap" }}>{aiText}</div></div>}
+        </>}
+      </div>
+      <button style={S.fab} onClick={()=>setShowForm(true)}>+</button>
+      {showForm && (
+        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+          <div style={S.modal}>
+            <div style={{ fontSize:"1rem",fontWeight:700,color:"#e2e8f0",marginBottom:18 }}>Nova transação</div>
+            <div style={{ display:"flex",gap:8,marginBottom:10 }}>
+              <button style={S.typeBtn(form.type==="expense","#f87171")} onClick={()=>setForm(f=>({...f,type:"expense",category:"Alimentação"}))}>💸 Gasto</button>
+              <button style={S.typeBtn(form.type==="income","#4ade80")} onClick={()=>setForm(f=>({...f,type:"income",category:"Renda"}))}>💰 Receita</button>
+            </div>
+            <input style={S.input} placeholder="Descrição" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))}/>
+            <input style={S.input} type="number" placeholder="Valor (R$)" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
+            <select style={S.select} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+              {CATEGORIES[form.type].map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+            <input style={S.input} type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+            <button style={S.saveBtn} onClick={addTransaction}>Salvar transação</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
